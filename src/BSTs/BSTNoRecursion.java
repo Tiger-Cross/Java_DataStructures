@@ -1,6 +1,11 @@
 package BSTs;
 
+import java.util.stream.IntStream;
+
+@SuppressWarnings("unchecked")
 public class BSTNoRecursion<E extends Comparable<E>> implements BST<E>{
+
+    // Overcomplicated this massively. It's all wrong.
 
     private Node<E> root;
 
@@ -13,7 +18,7 @@ public class BSTNoRecursion<E extends Comparable<E>> implements BST<E>{
     }
 
 
-    private Node<E> find(E element) {
+    private ParentChild<E> find(E element) {
         Node<E> curr = root;
         Node<E> pred = null;
 
@@ -21,96 +26,107 @@ public class BSTNoRecursion<E extends Comparable<E>> implements BST<E>{
             pred = curr;
             int compareTo = curr.getElement().compareTo(element);
             if (compareTo == 0) {
-                return curr;
+                return new ParentChild(pred, curr);
             }
             if (compareTo > 0) {
-                curr = curr.getLeft()
-                ;
-            } else {
                 curr = curr.getLeft();
+            } else {
+                curr = curr.getRight();
             }
 
         }
-        return curr;
+        return new ParentChild<>(pred, curr);
     }
 
     @Override
     public boolean add(E element) {
-        Node<E> curr = root;
-        Node<E> pred = null;
+        ParentChild pAndC = find(element);
 
-        while (curr != null) {
-            pred = curr;
-            int compareTo = curr.getElement().compareTo(element);
-            if (compareTo == 0) {
-                return false; // element already in tree
-            }
-            if (compareTo > 0) {
-                curr = curr.getLeft()
-                ;
-            } else {
-                curr = curr.getRight();
-            }
+        if (pAndC.parent == null) {
+            root = new Node<>(element);
+            return true;
+        }
+        if (pAndC.child != null) {
+            return false;
         }
 
-        curr = new Node<>(element);
-        if (pred.getElement().compareTo(element) > 0) {
-            pred.setLeft(curr);
+        if (pAndC.parent.getElement().compareTo(element) > 0) {
+            pAndC.parent.setLeft(new Node(element));
+            return true;
         } else {
-            pred.setRight(curr);
+            pAndC.parent.setRight(new Node(element));
+            return true;
         }
-        return true;
     }
 
     @Override
     public boolean remove(E element) {
-
-        // problem here is that I use find and don't create a pred and curr pair of nodes
-        // so I can't cover the final case properly
-
-        Node<E> nodeToRemove = find(element);
-        if (nodeToRemove == null) {
+        ParentChild pAndC = find(element);
+        if (pAndC.parent == null) {
+            return false; // tree is empty;
+        }
+        if (pAndC.child == null) {
             return false; // element not in tree
-        }
-        if (nodeToRemove.isLeaf()) {
-            nodeToRemove = null;
-            return true;
-        }
-        if (nodeToRemove.getLeft() == null) {
-            nodeToRemove = nodeToRemove.getRight();
-            return true;
-        }
-        if (nodeToRemove.getRight() == null){
-            nodeToRemove = nodeToRemove.getLeft();
-            return true;
+        } else if (pAndC.child.isLeaf()) {
+            replaceChild(pAndC, null);
+        } else if (pAndC.child.getLeft() == null && pAndC.child.getRight() != null) {
+            replaceChild(pAndC, pAndC.child.getRight());
+        } else if (pAndC.child.getLeft() != null && pAndC.child.getRight() == null) {
+            replaceChild(pAndC, pAndC.child.getLeft());
         } else {
-            // find min node on right to replace node
-            Node<E> replacementNode = nodeToRemove.getRight();
-            while (!replacementNode.isLeaf()) {
-                replacementNode = replacementNode.getLeft()
-                ;
+            Node<E> replacementNode = pAndC.child.getRight();
+            while (replacementNode.getLeft() != null) {
+                replacementNode = replacementNode.getLeft();
             }
-            // replace node
-            replacementNode.setLeft(nodeToRemove.getLeft());
-            ;
-            replacementNode.setRight(nodeToRemove.getRight());
-            nodeToRemove = replacementNode;
+            remove(replacementNode.getElement());
+            replacementNode.setLeft(pAndC.child.getLeft());
+            replacementNode.setRight(pAndC.child.getRight());
 
-            // remove replacement node as leaf
-            Node<E> deleteLeaf = replacementNode.getRight();
-            while (!deleteLeaf.isLeaf()) {
-                deleteLeaf = deleteLeaf.getLeft()
-                ;
-            }
-            // delete leaf
-            deleteLeaf = null;
-            return true;
+            replaceChild(pAndC, replacementNode);
+        }
+        return true;
+    }
+
+    private void replaceChild(ParentChild<E> pAndC, Node<E> replacementChild) {
+        if (pAndC.parent.getElement().compareTo(pAndC.child.getElement()) > 0) {
+            pAndC.parent.setLeft(replacementChild);
+        } else {
+            pAndC.parent.setRight(replacementChild);
         }
     }
 
     @Override
     public boolean contains(E element) {
-        return find(element) != null;
+        return find(element).child != null;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        toString(root, 0, stringBuilder);
+        return stringBuilder.toString() + '\n';
+    }
+
+    private void toString(Node<E> node, int indentation, StringBuilder stringBuilder) {
+        if (node == null) {
+            return;
+        }
+        IntStream.range(0, indentation).forEach(i -> stringBuilder.append("  "));
+        stringBuilder.append(node.getElement()+ "\n");
+        toString(node.getLeft(), indentation + 1, stringBuilder);
+        toString(node.getRight(), indentation + 1, stringBuilder);
+    }
+
+
+    private class ParentChild<T extends Comparable<T>> {
+
+        private Node<T> parent;
+        private Node<T> child;
+
+        public ParentChild(Node<T> parent, Node<T> child) {
+            this.parent = parent;
+            this.child = child;
+        }
     }
 
 }
